@@ -814,6 +814,28 @@
       return out;
     }
 
+    function adjustNoteForNoRepeat(note, prev){
+      if(prev == null || note !== prev) return note;
+      const up = note < 127 ? note + 1 : null;
+      const down = note > 0 ? note - 1 : null;
+      if(up != null && up !== prev) return up;
+      if(down != null && down !== prev) return down;
+      return note;
+    }
+
+    function ensureNoConsecutiveRepeats(sequence, startIndex=0){
+      if(!Array.isArray(sequence)) return sequence;
+      let start = Number.isFinite(startIndex) ? Math.max(0, Math.floor(startIndex)) : 0;
+      if(start > 0 && start >= sequence.length) start = sequence.length - 1;
+      for(let i=start; i<sequence.length; i++){
+        const prev = i>0 ? sequence[i-1] : null;
+        if(sequence[i] === prev){
+          sequence[i] = adjustNoteForNoRepeat(sequence[i], prev);
+        }
+      }
+      return sequence;
+    }
+
     const COMPLEXITY_LEVELS = [
       { description: 'Solo simples', weights: {1:1} },
       { description: 'Más simples que dobles', weights: {1:0.75, 2:0.25} },
@@ -1011,7 +1033,6 @@
 
         let eventNotes = [t];
         let isPattern = false;
-        let patternOffsets = null;
 
         if(usePattern && type){
           const chosen = choosePatternForType(type, complexityWeights);
@@ -1027,7 +1048,6 @@
               }
             }
             if(pattern){
-              patternOffsets = pattern.slice();
               eventNotes = pattern.map(off=>t+off);
               isPattern = true;
             }
@@ -1040,22 +1060,26 @@
         }
 
         const startIndex = line.length;
-        const allowRepeatTarget = !isPattern && eventNotes.every(n=>n===t);
         for(let j=0;j<eventNotes.length;j++){
           let note=eventNotes[j];
-          if(line.length>0 && line[line.length-1]===note && !allowRepeatTarget) note+=1;
+          note = adjustNoteForNoRepeat(note, line.length>0 ? line[line.length-1] : null);
           line.push(note);
+          eventNotes[j] = note;
         }
         const endIndex = line.length-1;
 
         lastTargetUsed = t;
 
-        if(isPattern && patternOffsets){
+        if(isPattern){
+          const actualOffsets = eventNotes.map(n=>n - t);
+          if(actualOffsets.length){
+            actualOffsets[actualOffsets.length-1] = 0;
+          }
           formulaEvents.push({
             targetMidi: t,
             type,
             length: endIndex-startIndex+1,
-            offsets: patternOffsets.slice(),
+            offsets: actualOffsets,
             startIndex,
             endIndex
           });
@@ -2356,64 +2380,62 @@
     function applyVariationOnFormula(state, formulaIdx){
       if(!state || !state.formulaEvents || !state.formulaEvents[formulaIdx]) return state;
       const f = state.formulaEvents[formulaIdx];
-      const {type,length,startIndex,targetMidi} = f;
+      const { type, length, startIndex } = f;
+      if(length <= 1) return state;
+
+      const targetIndex = startIndex + length - 1;
+      const originalLine = Array.isArray(state.line) ? state.line : [];
+      if(targetIndex < 0 || targetIndex >= originalLine.length) return state;
+      const targetNote = originalLine[targetIndex];
+      if(typeof targetNote !== 'number' || Number.isNaN(targetNote)) return state;
+
       const cat = APPROACH_PATTERNS[type];
-      if(!cat || !cat[length]) return state;
-      let candidates = cat[length];
-      candidates = candidates.filter(p=>JSON.stringify(p)!==JSON.stringify(f.offsets));
-      if(!candidates.length) candidates = cat[length];
+      if(!cat) return state;
+      const approachCount = Math.max(1, length - 1);
+      if(!cat[approachCount]) return state;
+
+      let candidates = cat[approachCount];
+      const currentOffsets = Array.isArray(f.offsets) ? f.offsets : [];
+      candidates = candidates.filter(p=>JSON.stringify(p)!==JSON.stringify(currentOffsets));
+      if(!candidates.length) candidates = cat[approachCount];
       const newPattern = candidates[Math.floor(Math.random()*candidates.length)];
 
-      const allowedTargets = buildAllowedTargets(state.chord || []);
-      let variationTarget = targetMidi;
-      if(allowedTargets.length){
-        if(!allowedTargets.includes(variationTarget)){
-          variationTarget = allowedTargets.reduce((best,candidate)=>{
-            if(best==null) return candidate;
-            const distBest = Math.abs(best-targetMidi);
-            const distCandidate = Math.abs(candidate-targetMidi);
-            if(distCandidate < distBest) return candidate;
-            if(distCandidate === distBest && Math.abs(candidate-variationTarget) < Math.abs(best-variationTarget)) return candidate;
-            return best;
-          }, null);
-        }
+      const newNotes = newPattern.map(off=>targetNote+off);
+      const line = originalLine.slice();
+
+      if(startIndex > 0){
+        newNotes[0] = adjustNoteForNoRepeat(newNotes[0], line[startIndex-1]);
       }
-      if(variationTarget==null) variationTarget = targetMidi;
-      if(typeof variationTarget !== 'number' || Number.isNaN(variationTarget)) return state;
-
-      // nueva fórmula amarrada al mismo target (ajustada a targets válidos)
-      const newNotes = newPattern.map(off=>variationTarget+off);
-
-      const line = state.line.slice();
-      const prevNote = startIndex>0 ? line[startIndex-1] : null;
-
-      for(let i=0;i<newNotes.length;i++){
-        if(i === newNotes.length - 1) break; // no tocar target
-        let note = newNotes[i];
-        if(i===0 && prevNote!=null && prevNote===note){
-          note += 1;
-        }
-        if(i>0 && newNotes[i-1]===note){
-          note += 1;
-        }
-        newNotes[i]=note;
+      for(let i=1;i<newNotes.length;i++){
+        newNotes[i] = adjustNoteForNoRepeat(newNotes[i], newNotes[i-1]);
       }
-
-      newNotes[newNotes.length-1] = variationTarget;
-      if(newNotes.length>1 && newNotes[newNotes.length-2] === newNotes[newNotes.length-1]){
-        newNotes[newNotes.length-2] += 1;
-      }
+      newNotes[newNotes.length-1] = targetNote;
 
       for(let i=0;i<length;i++){
-        line[startIndex+i]=newNotes[i];
+        line[startIndex+i] = newNotes[i];
       }
 
-      const newState = {...state};
-      newState.line = line;
+      ensureNoConsecutiveRepeats(line, startIndex);
+
+      const updatedOffsets = line.slice(startIndex, startIndex+length).map(n=>n-targetNote);
+      if(updatedOffsets.length){
+        updatedOffsets[updatedOffsets.length-1] = 0;
+      }
+
       const fe = state.formulaEvents.slice();
-      fe[formulaIdx] = {...f, offsets:newPattern.slice(), targetMidi:variationTarget};
-      newState.formulaEvents = fe;
-      return newState;
+      fe[formulaIdx] = {
+        ...f,
+        offsets: updatedOffsets,
+        targetMidi: targetNote,
+        startIndex,
+        endIndex: startIndex + length - 1,
+      };
+
+      return {
+        ...state,
+        line,
+        formulaEvents: fe,
+      };
     }
 
     // ===== DICCIONARIO UI =====

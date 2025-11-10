@@ -22,7 +22,7 @@ describe('Generación y variaciones de fórmulas', () => {
     getElement(appContext, 'complexity').value = '40';
     getElement(appContext, 'targetMin').value = 'C3';
     getElement(appContext, 'targetMax').value = 'C6';
-    getElement(appContext, 'stability').value = '50';
+    getElement(appContext, 'stability').value = '100';
     setDeterministicRandom(appContext);
   });
 
@@ -69,5 +69,87 @@ describe('Generación y variaciones de fórmulas', () => {
     expect(updated.formulaEvents[0].length).toBe(3);
     expect(updated.formulaEvents[0].targetMidi).toBe(60);
     expect(updated.formulaEvents[0].offsets[updated.formulaEvents[0].offsets.length-1]).toBe(0);
+  });
+
+  it('limita los targets aislados y evita notas sin ligadura', () => {
+    const chord = [
+      appContext.noteNameToMidi('C4'),
+      appContext.noteNameToMidi('E4'),
+      appContext.noteNameToMidi('G4'),
+    ];
+    const upper = [
+      appContext.noteNameToMidi('D4'),
+      appContext.noteNameToMidi('F4'),
+      appContext.noteNameToMidi('A4'),
+    ];
+
+    const result = appContext.generateLine(chord, upper, 6, 100);
+
+    expect(Array.isArray(result.events)).toBe(true);
+    const coveredByFormula = new Set();
+    (result.formulaEvents || []).forEach(f => {
+      for(let i=f.startIndex;i<=f.endIndex;i++){
+        coveredByFormula.add(i);
+      }
+    });
+
+    const isolatedRuns = [];
+    let currentRun = 0;
+
+    result.events.forEach(ev => {
+      if(ev.kind === 'isolated'){
+        expect(ev.length).toBe(1);
+        expect(result.line[ev.startIndex]).toBe(ev.targetMidi);
+        currentRun++;
+      }else{
+        if(currentRun>0){
+          isolatedRuns.push(currentRun);
+          currentRun=0;
+        }
+        expect(result.line[ev.endIndex]).toBe(ev.targetMidi);
+      }
+
+      for(let idx=ev.startIndex; idx<=ev.endIndex; idx++){
+        const isFormula = coveredByFormula.has(idx);
+        if(!isFormula){
+          expect(ev.kind).toBe('isolated');
+          expect(result.line[idx]).toBe(ev.targetMidi);
+        }
+      }
+    });
+
+    if(currentRun>0) isolatedRuns.push(currentRun);
+
+    isolatedRuns.forEach(run => {
+      expect(run).toBeLessThanOrEqual(2);
+    });
+    const doubles = isolatedRuns.filter(v => v === 2).length;
+    expect(doubles).toBeLessThanOrEqual(1);
+  });
+
+  it('lineToMusicXML añade ligaduras completas y becuadros necesarios', () => {
+    const fSharp = appContext.noteNameToMidi('F#4');
+    const g4 = appContext.noteNameToMidi('G4');
+    const fNatural = appContext.noteNameToMidi('F4');
+    const e4 = appContext.noteNameToMidi('E4');
+
+    const line = [fSharp, g4, fNatural, e4];
+    const formulaEvents = [{
+      startIndex: 0,
+      endIndex: 2,
+      length: 3,
+      targetMidi: fNatural,
+      type: 1,
+      offsets: [-1, 1, 0],
+    }];
+
+    const xml = appContext.lineToMusicXML(line, 'Test', 'G', formulaEvents);
+
+    const starts = (xml.match(/<slur type="start"/g) || []).length;
+    const stops = (xml.match(/<slur type="stop"/g) || []).length;
+    expect(starts).toBe(1);
+    expect(stops).toBe(1);
+    expect(xml).toContain('<accidental>sharp</accidental>');
+    expect(xml).toContain('<accidental>natural</accidental>');
   });
 });

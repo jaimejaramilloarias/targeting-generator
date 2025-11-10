@@ -432,39 +432,103 @@
 
     /* Diccionario */
     .formula-dict {
-      max-height: 260px;
+      max-height: 360px;
       overflow:auto;
-      border-radius:10px;
+      border-radius:14px;
       border:1px solid rgba(31,41,55,0.95);
-      padding:8px 8px 6px;
-      background:rgba(15,23,42,0.85);
-      font-size:12px;
+      padding:12px;
+      background:rgba(2,6,23,0.88);
+      display:grid;
+      gap:12px;
+      grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
     }
 
-    .formula-type-title {
+    .formula-group {
+      background:linear-gradient(135deg, rgba(15,23,42,0.95), rgba(2,6,23,0.95));
+      border:1px solid rgba(148,163,184,0.2);
+      border-radius:14px;
+      padding:12px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+
+    .formula-group-header {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    }
+
+    .formula-group-title {
       font-weight:600;
-      font-size:13px;
-      margin-top:4px;
-      margin-bottom:2px;
+      font-size:14px;
     }
 
-    .formula-len-title {
-      font-size:12px;
+    .formula-group-badge {
+      font-size:11px;
       color:var(--text-soft);
-      margin-top:4px;
+      padding:2px 8px;
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,0.4);
+      background:rgba(15,23,42,0.6);
+    }
+
+    .formula-length-block {
+      background:rgba(2,6,23,0.85);
+      border:1px solid rgba(148,163,184,0.25);
+      border-radius:12px;
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+
+    .formula-length-heading {
+      font-size:12px;
+      font-weight:500;
+      color:var(--text-soft);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    .formula-rows {
+      display:flex;
+      flex-direction:column;
+      gap:4px;
     }
 
     .formula-row {
       display:flex;
       align-items:center;
       justify-content:space-between;
-      padding:3px 6px;
-      border-radius:6px;
-      background:rgba(15,23,42,0.8);
-      margin-top:2px;
+      gap:10px;
+      padding:6px 8px;
+      border-radius:8px;
+      background:rgba(15,23,42,0.9);
     }
 
-    .formula-row span { font-size:12px; }
+    .formula-row span {
+      font-size:12px;
+      line-height:1.35;
+      flex:1;
+    }
+
+    .formula-actions {
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+    }
+
+    .formula-count {
+      font-size:11px;
+      color:var(--text-soft);
+      padding:1px 6px;
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,0.25);
+      background:rgba(15,23,42,0.5);
+    }
 
     .line-formulas {
       max-height:160px;
@@ -572,12 +636,12 @@
 
               <div class="row" style="display:flex; gap:12px; margin-top:14px;">
                 <div style="flex:1;">
-                  <label>Límite inferior (ej. G3)</label>
-                  <input id="targetMin" type="text" value="G3" />
+                  <label>Límite inferior (ej. E4)</label>
+                  <input id="targetMin" type="text" value="E4" />
                 </div>
                 <div style="flex:1;">
-                  <label>Límite superior (ej. G6)</label>
-                  <input id="targetMax" type="text" value="G6" />
+                  <label>Límite superior (ej. A5)</label>
+                  <input id="targetMax" type="text" value="A5" />
                 </div>
               </div>
             </div>
@@ -588,7 +652,7 @@
                 <div class="slider-label-row">
                   <span>Complejidad de targeting</span>
                   <label class="inline-checkbox">
-                    <input type="checkbox" id="randomComplex" />
+                    <input type="checkbox" id="randomComplex" checked />
                     Complejidad aleatoria
                   </label>
                 </div>
@@ -598,7 +662,7 @@
                   </div>
                 </div>
                 <div class="status" id="complexityLabel">
-                  Complejidad: zona 9 (Más cuádruples que triples)
+                  Complejidad: aleatoria (todas las fórmulas)
                 </div>
               </div>
 
@@ -608,16 +672,16 @@
                 </div>
                 <div class="slider-row">
                   <div class="slider-wrapper">
-                    <input id="stability" type="range" min="0" max="100" value="50" />
+                    <input id="stability" type="range" min="0" max="100" value="100" />
                   </div>
                 </div>
-                <div class="status" id="stabilityLabel">Estabilidad: media</div>
+                <div class="status" id="stabilityLabel">Estabilidad: máxima (targets siempre en corcheas impares)</div>
               </div>
 
               <div class="row" style="display:flex; gap:12px; margin-top:16px;">
                 <div style="flex:1;">
                   <label>Número de fórmulas</label>
-                  <input id="numFormulas" type="number" min="1" max="64" value="8" />
+                  <input id="numFormulas" type="number" min="1" max="64" value="4" />
                 </div>
                 <div style="flex:1;">
                   <label>Tempo (BPM)</label>
@@ -787,8 +851,8 @@
         .filter(n=>n!=null);
     }
 
-    const DEFAULT_TARGET_MIN = noteNameToMidi('G3');
-    const DEFAULT_TARGET_MAX = noteNameToMidi('G6');
+    const DEFAULT_TARGET_MIN = noteNameToMidi('E4');
+    const DEFAULT_TARGET_MAX = noteNameToMidi('A5');
 
     function getTargetRange(){
       const minInput = document.getElementById('targetMin');
@@ -883,11 +947,11 @@
     function updateStabilityLabel(){
       const v = Number(document.getElementById('stability').value);
       let txt;
-      if(v <= 20) txt = "muy estable (targets casi siempre en corcheas impares)";
-      else if(v <= 40) txt = "estable";
-      else if(v <= 60) txt = "media";
-      else if(v <= 80) txt = "inestable";
-      else txt = "muy inestable (no se respeta la posición de los targets)";
+      if(v >= 95) txt = "máxima (targets siempre en corcheas impares)";
+      else if(v >= 75) txt = "alta";
+      else if(v >= 55) txt = "media";
+      else if(v >= 35) txt = "baja";
+      else txt = "muy baja (los targets pueden desplazarse)";
       document.getElementById('stabilityLabel').textContent = "Estabilidad: " + txt;
     }
 
@@ -987,7 +1051,7 @@
       const targetTypes = computeTargetTypes(chord, upper);
       const allowed = buildAllowedTargets(chord);
       const L = allowed.length;
-      if(!L) return { line: [], targetSequence: [], targetTypes, formulaEvents: [], mode };
+      if(!L) return { line: [], targetSequence: [], targetTypes, formulaEvents: [], events: [], mode };
 
       let dir;
       if(mode==='up') dir=1;
@@ -995,18 +1059,20 @@
       else dir = Math.random()<0.5 ? 1 : -1;
 
       let idx = Math.floor(Math.random()*L);
-      const ISOLATED_PROB = 0.5;
-      const ISOLATED_PAIR_PROB = 0.25;
+      const ISOLATED_PROB = 0.28;
       const { weights: complexityWeights } = getComplexityLevelFromValue(document.getElementById('complexity').value);
-      const stabilizeProb = (100 - stabilityVal) / 100;
+      const stabilityNormalized = Math.max(0, Math.min(100, Number(stabilityVal) || 0)) / 100;
+      const stabilizeProb = stabilityNormalized;
 
       const line = [];
       const formulaEvents = [];
+      const eventsLog = [];
       const targetSequence = [];
 
       const desired = Math.max(1, numFormulas|0);
       let patternsUsed = 0;
       let isolatedRun = 0;
+      let isolatedDoublesUsed = 0;
       let eventsCount = 0;
       const maxEvents = desired*4 + 12;
       let lastTargetUsed = null;
@@ -1029,7 +1095,23 @@
         const noteIndexBefore = line.length + 1;
         let usePattern = !!type && (Math.random() >= ISOLATED_PROB);
 
-        if(!usePattern && isolatedRun >= 2 && type) usePattern = true;
+        let allowDouble = false;
+
+        if(!usePattern && type){
+          if(isolatedRun >= 1){
+            if(isolatedDoublesUsed >= 1){
+              usePattern = true;
+            }else{
+              const grantSecond = Math.random() < 0.08;
+              if(grantSecond){
+                allowDouble = true;
+              }else{
+                usePattern = true;
+              }
+            }
+          }
+          if(isolatedRun >= 2) usePattern = true;
+        }
 
         let eventNotes = [t];
         let isPattern = false;
@@ -1043,7 +1125,7 @@
               const Lp = pattern.length;
               const posTarget = noteIndexBefore + Lp - 1;
               const targetWouldBeEven = (posTarget % 2 === 0);
-              if(targetWouldBeEven && isolatedRun < 2){
+              if(targetWouldBeEven && isolatedRun < 2 && isolatedDoublesUsed < 1){
                 pattern = null;
               }
             }
@@ -1055,8 +1137,17 @@
         }
 
         if(!isPattern){
-          const isolatedCount = Math.random() < ISOLATED_PAIR_PROB ? 2 : 1;
-          eventNotes = new Array(isolatedCount).fill(t);
+          if(type && isolatedRun >= 1 && (!allowDouble || isolatedDoublesUsed >= 1)){
+            const fallback = choosePatternForType(type, complexityWeights);
+            if(fallback && Array.isArray(fallback.pattern)){
+              eventNotes = fallback.pattern.map(off=>t+off);
+              isPattern = true;
+            }else{
+              eventNotes = [t];
+            }
+          }else{
+            eventNotes = [t];
+          }
         }
 
         const startIndex = line.length;
@@ -1075,17 +1166,34 @@
           if(actualOffsets.length){
             actualOffsets[actualOffsets.length-1] = 0;
           }
-          formulaEvents.push({
+          const formulaEvent = {
             targetMidi: t,
             type,
             length: endIndex-startIndex+1,
             offsets: actualOffsets,
             startIndex,
             endIndex
+          };
+          formulaEvents.push(formulaEvent);
+          eventsLog.push({
+            kind: 'formula',
+            targetMidi: t,
+            type,
+            startIndex,
+            endIndex,
+            length: formulaEvent.length
           });
           patternsUsed++;
           isolatedRun=0;
         }else{
+          eventsLog.push({
+            kind: 'isolated',
+            targetMidi: t,
+            startIndex,
+            endIndex,
+            length: endIndex-startIndex+1
+          });
+          if(allowDouble) isolatedDoublesUsed++;
           isolatedRun++;
         }
 
@@ -1100,7 +1208,7 @@
         dir=currentDir;
       }
 
-      return { line, targetSequence, targetTypes, formulaEvents, mode };
+      return { line, targetSequence, targetTypes, formulaEvents, events: eventsLog, mode };
     }
 
     // ===== AUDIO =====
@@ -1121,6 +1229,52 @@
       osc.stop(now + durationMs/1000 + 0.05);
       highlightKey(midi,true);
       setTimeout(()=>highlightKey(midi,false), durationMs);
+    }
+
+    let dictPlaybackState = null;
+
+    function setDictPlayButtonState(button, playing){
+      if(!button) return;
+      button.textContent = playing ? '■ Detener' : '▶ Escuchar';
+      button.setAttribute('aria-pressed', playing ? 'true' : 'false');
+      if(playing) button.classList.add('btn-primary');
+      else button.classList.remove('btn-primary');
+    }
+
+    function stopDictPlayback(){
+      if(!dictPlaybackState) return;
+      dictPlaybackState.timers.forEach(id=>clearTimeout(id));
+      dictPlaybackState.timers = [];
+      if(dictPlaybackState.button){
+        setDictPlayButtonState(dictPlaybackState.button, false);
+      }
+      dictPlaybackState = null;
+    }
+
+    function playFormulaPreview(notes, button){
+      if(dictPlaybackState && dictPlaybackState.button === button){
+        stopDictPlayback();
+        return;
+      }
+      stopDictPlayback();
+      if(!notes || !notes.length) return;
+      if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      const stepMs = 320;
+      dictPlaybackState = { button, timers: [] };
+      setDictPlayButtonState(button, true);
+
+      const schedule = (idx)=>{
+        if(!dictPlaybackState || dictPlaybackState.button !== button) return;
+        if(idx >= notes.length){
+          stopDictPlayback();
+          return;
+        }
+        playSingleNote(notes[idx], stepMs);
+        const timer = setTimeout(()=>schedule(idx+1), stepMs);
+        dictPlaybackState.timers.push(timer);
+      };
+
+      schedule(0);
     }
 
     // ===== MIDI =====
@@ -1599,6 +1753,8 @@
             </attributes>`;
         }
 
+        const accidentalState = {};
+
         for(let i=0;i<len;i++){
           const midi = entries[i].note;
           const globalIndex = entries[i].index;
@@ -1634,6 +1790,22 @@
           let noteXml = `<note><pitch><step>${step}</step>`;
           if(alter !== 0) noteXml += `<alter>${alter}</alter>`;
           noteXml += `<octave>${octave}</octave></pitch><duration>1</duration><type>eighth</type>`;
+
+          const pitchKey = `${step}${octave}`;
+          const prevAlter = accidentalState[pitchKey];
+          let accidentalTag = '';
+          if(alter === 0){
+            if(prevAlter != null && prevAlter !== 0){
+              accidentalTag = '<accidental>natural</accidental>';
+            }
+          }else if(alter === 1){
+            accidentalTag = '<accidental>sharp</accidental>';
+          }else if(alter === -1){
+            accidentalTag = '<accidental>flat</accidental>';
+          }
+          accidentalState[pitchKey] = alter;
+
+          if(accidentalTag) noteXml += accidentalTag;
 
           const isStart = slurStartSet.has(globalIndex);
           const isEnd = slurEndSet.has(globalIndex);
@@ -1694,6 +1866,8 @@
         }
       }
 
+      const accidentalState = {};
+
       for(let i=0;i<len;i++){
         const midi=notes[i];
         const pc=pitchClass(midi);
@@ -1707,6 +1881,22 @@
         let noteXml = `<note><pitch><step>${step}</step>`;
         if(alter!==0) noteXml+=`<alter>${alter}</alter>`;
         noteXml+=`<octave>${octave}</octave></pitch><duration>1</duration><type>eighth</type>`;
+
+        const pitchKey = `${step}${octave}`;
+        const prevAlter = accidentalState[pitchKey];
+        let accidentalTag = '';
+        if(alter === 0){
+          if(prevAlter != null && prevAlter !== 0){
+            accidentalTag = '<accidental>natural</accidental>';
+          }
+        }else if(alter === 1){
+          accidentalTag = '<accidental>sharp</accidental>';
+        }else if(alter === -1){
+          accidentalTag = '<accidental>flat</accidental>';
+        }
+        accidentalState[pitchKey] = alter;
+
+        if(accidentalTag) noteXml += accidentalTag;
 
         if(i===0 || i===len-1){
           noteXml += `<notations><slur type="${i===0?'start':'stop'}"/></notations>`;
@@ -2192,8 +2382,8 @@
       document.getElementById('chordMidi').value = (state.chord||[]).map(midiToNoteNameWithOctave).join(',');
       document.getElementById('upperChordMidi').value = (state.upper||[]).map(midiToNoteNameWithOctave).join(',');
       document.getElementById('tempo').value = state.tempo || 240;
-      document.getElementById('numFormulas').value = state.numFormulas || 8;
-      document.getElementById('stability').value = state.stabilityVal ?? 50;
+      document.getElementById('numFormulas').value = state.numFormulas || 4;
+      document.getElementById('stability').value = state.stabilityVal ?? 100;
       document.getElementById('complexity').value = state.complexityVal ?? 50;
       document.getElementById('randomComplex').checked = !!state.randomComplex;
       updateComplexityLabel();
@@ -2318,8 +2508,8 @@
       document.getElementById('chordMidi').value = (state.chord||[]).map(midiToNoteNameWithOctave).join(',');
       document.getElementById('upperChordMidi').value = (state.upper||[]).map(midiToNoteNameWithOctave).join(',');
       document.getElementById('tempo').value = state.tempo || 240;
-      document.getElementById('numFormulas').value = state.numFormulas || 8;
-      document.getElementById('stability').value = state.stabilityVal ?? 50;
+      document.getElementById('numFormulas').value = state.numFormulas || 4;
+      document.getElementById('stability').value = state.stabilityVal ?? 100;
       document.getElementById('complexity').value = state.complexityVal ?? 50;
       document.getElementById('randomComplex').checked = !!state.randomComplex;
       updateComplexityLabel();
@@ -2444,10 +2634,25 @@
         endIndex: startIndex + length - 1,
       };
 
+      let events = state.events;
+      if(Array.isArray(state.events)){
+        events = state.events.map(ev => {
+          if(ev && ev.kind === 'formula' && ev.startIndex === startIndex && ev.endIndex === startIndex + length - 1){
+            return {
+              ...ev,
+              targetMidi: targetNote,
+              length,
+            };
+          }
+          return ev;
+        });
+      }
+
       return {
         ...state,
         line,
         formulaEvents: fe,
+        events,
       };
     }
 
@@ -2455,41 +2660,84 @@
     function buildFormulaDictionaryUI(){
       const container=document.getElementById('formulaDict');
       if(!container) return;
+      stopDictPlayback();
       container.innerHTML='';
+      const baseTarget = noteNameToMidi('C5');
       Object.entries(APPROACH_PATTERNS).forEach(([type,lengthsObj])=>{
-        const typeDiv=document.createElement('div');
+        const group=document.createElement('section');
+        group.className='formula-group';
+
+        const header=document.createElement('div');
+        header.className='formula-group-header';
         const title=document.createElement('div');
-        title.className='formula-type-title';
+        title.className='formula-group-title';
         title.textContent='Tipo '+type;
-        typeDiv.appendChild(title);
+        header.appendChild(title);
+        const badge=document.createElement('span');
+        badge.className='formula-group-badge';
+        badge.textContent = type==='1' ? 'Vecina a tono' : 'Vecina a semitono';
+        header.appendChild(badge);
+        group.appendChild(header);
 
         Object.entries(lengthsObj).forEach(([len,patterns])=>{
-          const lenTitle=document.createElement('div');
-          lenTitle.className='formula-len-title';
+          const block=document.createElement('div');
+          block.className='formula-length-block';
+          const heading=document.createElement('div');
+          heading.className='formula-length-heading';
           const nameLen = len==1?'Simple':len==2?'Doble':len==3?'Triple':len==4?'Cuádruple':len==5?'Quíntuple':'Séxtuple';
-          lenTitle.textContent = nameLen + ` (${len} notas)`;
-          typeDiv.appendChild(lenTitle);
+          const headingTitle=document.createElement('span');
+          headingTitle.textContent = `${nameLen} (${len} notas)`;
+          const headingCount=document.createElement('span');
+          headingCount.className='formula-count';
+          headingCount.textContent = patterns.length===1 ? '1 fórmula' : `${patterns.length} fórmulas`;
+          heading.appendChild(headingTitle);
+          heading.appendChild(headingCount);
+          block.appendChild(heading);
+
+          const rows=document.createElement('div');
+          rows.className='formula-rows';
 
           patterns.forEach((pat,idx)=>{
             const row=document.createElement('div');
             row.className='formula-row';
             const span=document.createElement('span');
-            span.textContent=`#${idx+1}: ${pat.join(',')}`;
-            const btn=document.createElement('button');
-            btn.textContent='Ver';
-            btn.className='btn-tiny';
-            btn.onclick=()=>{
-              const target = noteNameToMidi('C5');
-              const notes = pat.map(off=>target+off);
+            span.textContent=`#${idx+1} · ${pat.join(', ')}`;
+            row.appendChild(span);
+
+            const actions=document.createElement('div');
+            actions.className='formula-actions';
+
+            const viewBtn=document.createElement('button');
+            viewBtn.type='button';
+            viewBtn.textContent='Ver';
+            viewBtn.className='btn-tiny';
+            viewBtn.onclick=()=>{
+              stopDictPlayback();
+              const notes = pat.map(off=>baseTarget+off);
               renderFormulaInDict(notes, `Tipo ${type} · ${nameLen}`);
             };
-            row.appendChild(span);
-            row.appendChild(btn);
-            typeDiv.appendChild(row);
+            actions.appendChild(viewBtn);
+
+            const playBtn=document.createElement('button');
+            playBtn.type='button';
+            playBtn.textContent='▶ Escuchar';
+            playBtn.className='btn-tiny';
+            playBtn.setAttribute('aria-pressed','false');
+            playBtn.onclick=()=>{
+              const notes = pat.map(off=>baseTarget+off);
+              playFormulaPreview(notes, playBtn);
+            };
+            actions.appendChild(playBtn);
+
+            row.appendChild(actions);
+            rows.appendChild(row);
           });
+
+          block.appendChild(rows);
+          group.appendChild(block);
         });
 
-        container.appendChild(typeDiv);
+        container.appendChild(group);
       });
 
       const expl=document.createElement('div');
@@ -2504,6 +2752,7 @@
     document.getElementById('generateBtn').onclick = async ()=>{
       try{
         stopPlayback();
+        stopDictPlayback();
         const chord=parseNoteList(document.getElementById('chordMidi').value);
         const upper=parseNoteList(document.getElementById('upperChordMidi').value);
         const numFormulas=+document.getElementById('numFormulas').value;
@@ -2513,7 +2762,7 @@
         const randomComplex=document.getElementById('randomComplex').checked;
 
         const gen = generateLine(chord,upper,numFormulas,stabilityVal);
-        const {line,targetSequence,targetTypes,formulaEvents} = gen;
+        const {line,targetSequence,targetTypes,formulaEvents,events} = gen;
 
         const state = {
           line,
@@ -2526,7 +2775,8 @@
           numFormulas,
           stabilityVal,
           complexityVal,
-          randomComplex
+          randomComplex,
+          events
         };
         currentGeneratedState = state;
 
@@ -2632,6 +2882,7 @@
 
     function showView(which){
       stopPlayback();
+      stopDictPlayback();
       const mainView=document.getElementById('mainView');
       const dictView=document.getElementById('dictView');
       if(which==='dict'){
@@ -2654,6 +2905,12 @@
     window.onload = () => {
       initMIDI();
       buildVirtualPiano();
+      const randomComplexInput = document.getElementById('randomComplex');
+      if(randomComplexInput) randomComplexInput.checked = true;
+      const stabilityInput = document.getElementById('stability');
+      if(stabilityInput && !stabilityInput.value) stabilityInput.value = '100';
+      const numFormulasInput = document.getElementById('numFormulas');
+      if(numFormulasInput && !numFormulasInput.value) numFormulasInput.value = '4';
       loadSavedLinesFromLocal();
       updateComplexityLabel();
       updateStabilityLabel();

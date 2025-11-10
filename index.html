@@ -432,15 +432,26 @@
 
     /* Diccionario */
     .formula-dict {
-      max-height: 360px;
-      overflow:auto;
       border-radius:14px;
       border:1px solid rgba(31,41,55,0.95);
       padding:12px;
       background:rgba(2,6,23,0.88);
       display:grid;
-      gap:12px;
-      grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+      gap:18px;
+      grid-template-columns:repeat(3, minmax(0, 1fr));
+      align-items:start;
+    }
+
+    @media (max-width: 1200px) {
+      .formula-dict {
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 820px) {
+      .formula-dict {
+        grid-template-columns:minmax(0, 1fr);
+      }
     }
 
     .formula-group {
@@ -519,6 +530,13 @@
       display:flex;
       flex-wrap:wrap;
       gap:6px;
+    }
+
+    .formula-footnote {
+      grid-column:1 / -1;
+      font-size:11px;
+      color:var(--text-soft);
+      margin-top:4px;
     }
 
     .formula-count {
@@ -1216,6 +1234,14 @@
     const midiToFreq = m => 440*Math.pow(2,(m-69)/12);
 
     function playSingleNote(midi, durationMs){
+      let midiOffTimer=null;
+      if(midiOutput){
+        midiOutput.send([0x90, midi & 0x7F, 100]);
+        midiOffTimer=setTimeout(()=>{
+          midiOffTimer=null;
+          midiOutput && midiOutput.send([0x80, midi & 0x7F, 0]);
+        }, durationMs);
+      }
       if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
       const osc=audioCtx.createOscillator();
       const g=audioCtx.createGain();
@@ -1226,9 +1252,21 @@
       g.gain.exponentialRampToValueAtTime(0.0001, now + durationMs/1000);
       osc.connect(g).connect(audioCtx.destination);
       osc.start(now);
-      osc.stop(now + durationMs/1000 + 0.05);
+      const stopAt = now + durationMs/1000 + 0.05;
+      const highlightTimer = setTimeout(()=>highlightKey(midi,false), durationMs);
+      osc.stop(stopAt);
       highlightKey(midi,true);
-      setTimeout(()=>highlightKey(midi,false), durationMs);
+
+      return ()=>{
+        if(midiOffTimer){
+          clearTimeout(midiOffTimer);
+          midiOutput && midiOutput.send([0x80, midi & 0x7F, 0]);
+          midiOffTimer=null;
+        }
+        clearTimeout(highlightTimer);
+        highlightKey(midi,false);
+        try{ osc.stop(); }catch(e){}
+      };
     }
 
     let dictPlaybackState = null;
@@ -1245,6 +1283,12 @@
       if(!dictPlaybackState) return;
       dictPlaybackState.timers.forEach(id=>clearTimeout(id));
       dictPlaybackState.timers = [];
+      if(Array.isArray(dictPlaybackState.cleanupFns)){
+        dictPlaybackState.cleanupFns.forEach(fn=>{
+          try{ fn(); }catch(e){}
+        });
+        dictPlaybackState.cleanupFns = [];
+      }
       if(dictPlaybackState.button){
         setDictPlayButtonState(dictPlaybackState.button, false);
       }
@@ -1260,7 +1304,7 @@
       if(!notes || !notes.length) return;
       if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
       const stepMs = 320;
-      dictPlaybackState = { button, timers: [] };
+      dictPlaybackState = { button, timers: [], cleanupFns: [] };
       setDictPlayButtonState(button, true);
 
       const schedule = (idx)=>{
@@ -1269,7 +1313,16 @@
           stopDictPlayback();
           return;
         }
-        playSingleNote(notes[idx], stepMs);
+        const cleanup = playSingleNote(notes[idx], stepMs);
+        if(dictPlaybackState && dictPlaybackState.cleanupFns && typeof cleanup === 'function'){
+          dictPlaybackState.cleanupFns.push(cleanup);
+          const removalTimer = setTimeout(()=>{
+            if(!dictPlaybackState || !Array.isArray(dictPlaybackState.cleanupFns)) return;
+            const index = dictPlaybackState.cleanupFns.indexOf(cleanup);
+            if(index>=0) dictPlaybackState.cleanupFns.splice(index,1);
+          }, stepMs);
+          dictPlaybackState.timers.push(removalTimer);
+        }
         const timer = setTimeout(()=>schedule(idx+1), stepMs);
         dictPlaybackState.timers.push(timer);
       };
@@ -1311,22 +1364,39 @@
 
     function refreshMIDIOutputs(){
       const sel=document.getElementById('midiOutputSelect');
-      const current=sel.value;
+      if(!sel) return;
+      const previous=sel.value;
       sel.innerHTML='<option value="">(sin salida MIDI)</option>';
-      if(!midiAccess) return;
-      for(const out of midiAccess.outputs.values()){
+      if(!midiAccess){
+        midiOutput=null;
+        setText('midiOutStatus','Ninguna salida seleccionada.');
+        return;
+      }
+
+      const outputs=Array.from(midiAccess.outputs.values());
+      outputs.forEach(out=>{
         const opt=document.createElement('option');
         opt.value=out.id;
         opt.textContent=out.name||out.id;
         sel.appendChild(opt);
+      });
+
+      let selectedOut=null;
+      if(previous){
+        selectedOut=outputs.find(o=>o.id===previous)||null;
       }
-      if(current){
-        const out = Array.from(midiAccess.outputs.values()).find(o=>o.id===current);
-        if(out){
-          sel.value=current;
-          midiOutput=out;
-          setText('midiOutStatus','Salida MIDI: '+(out.name||out.id));
-        }
+      if(!selectedOut && outputs.length){
+        selectedOut=outputs[0];
+      }
+
+      if(selectedOut){
+        sel.value=selectedOut.id;
+        midiOutput=selectedOut;
+        setText('midiOutStatus','Salida MIDI: '+(selectedOut.name||selectedOut.id));
+      }else{
+        sel.value='';
+        midiOutput=null;
+        setText('midiOutStatus','Ninguna salida seleccionada.');
       }
     }
 
@@ -2741,9 +2811,7 @@
       });
 
       const expl=document.createElement('div');
-      expl.style.fontSize='11px';
-      expl.style.color='var(--text-soft)';
-      expl.style.marginTop='6px';
+      expl.className='formula-footnote';
       expl.textContent='Las ligaduras muestran cada fórmula como unidad melódica; la nota target (0) aparece en verde en la partitura.';
       container.appendChild(expl);
     }

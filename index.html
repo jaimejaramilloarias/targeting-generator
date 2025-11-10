@@ -1253,14 +1253,20 @@
 
       let whiteIndex = 0;
       const octaveStart = 3;
-      const octaveEnd = 6;
+      const octaveEnd = 7;
+      const highestMidi = noteNameToMidi('D7');
 
-      // Teclas blancas C3–B6
+      // Teclas blancas C3–D7
       for(let oct = octaveStart; oct <= octaveEnd; oct++){
+        let reachedLimit = false;
         for(let i=0;i<whiteSteps.length;i++){
           const step = whiteSteps[i];
           const pc = basePcMap[step];
           const midi = (oct+1)*12 + pc;
+          if(midi > highestMidi){
+            reachedLimit = true;
+            break;
+          }
           const x = whiteIndex * WHITE_KEY_WIDTH;
 
           const key = document.createElement('div');
@@ -1274,6 +1280,7 @@
 
           whiteIndex++;
         }
+        if(reachedLimit) break;
       }
       const totalWhites = whiteIndex;
 
@@ -1293,6 +1300,7 @@
           const centerX = (leftGlobalIndex + 1) * WHITE_KEY_WIDTH; // límite entre blancas
           const leftPx = centerX - BLACK_KEY_WIDTH/2;
           const midi = (oct+1)*12 + spec.pc;
+          if(midi > highestMidi) return;
 
           const key = document.createElement('div');
           key.className = 'piano-key black';
@@ -1384,13 +1392,18 @@
       }
     });
 
-    let viewTranspose = 0;
+    let scoreBaseTranspose = 0;
+    let playbackBaseTranspose = 0;
+    let octaveShift = 0;
     let viewClef = 'G';
-    let viewOctaveShift = 0;
     let currentScoreNoteGroups = [];
 
+    function getScoreTranspose(){
+      return scoreBaseTranspose + octaveShift;
+    }
+
     function getPlaybackTranspose(){
-      return viewTranspose + viewOctaveShift;
+      return playbackBaseTranspose + octaveShift;
     }
 
     // ===== REPRODUCCIÓN =====
@@ -1806,7 +1819,7 @@
         currentGeneratedState.line,
         currentGeneratedState.chord || [],
         viewClef,
-        getPlaybackTranspose(),
+        getScoreTranspose(),
         currentGeneratedState.formulaEvents || []
       );
     }
@@ -2593,21 +2606,23 @@
       updateScoreView();
     }
 
-    function setBaseTranspose(semitones, clef){
-      viewTranspose = semitones;
+    function setBaseTranspose(scoreSemitones, clef, playbackSemitones, newOctaveShift){
+      if(typeof scoreSemitones === 'number') scoreBaseTranspose = scoreSemitones;
+      if(typeof playbackSemitones === 'number') playbackBaseTranspose = playbackSemitones;
+      if(typeof newOctaveShift === 'number') octaveShift = newOctaveShift;
       if(clef) viewClef = clef;
       updateScoreViewAfterChange();
     }
 
     function adjustOctaveShift(delta){
-      viewOctaveShift += delta;
+      octaveShift += delta;
       updateScoreViewAfterChange();
     }
 
-    document.getElementById('viewOriginalBtn').onclick=()=>setBaseTranspose(0,'G');
-    document.getElementById('viewEbBtn').onclick=()=>setBaseTranspose(3,'G');
-    document.getElementById('viewBbBtn').onclick=()=>setBaseTranspose(-2,'G');
-    document.getElementById('viewClefFBtn').onclick=()=>setBaseTranspose(viewTranspose,'F');
+    document.getElementById('viewOriginalBtn').onclick=()=>setBaseTranspose(0,'G',0,0);
+    document.getElementById('viewEbBtn').onclick=()=>setBaseTranspose(9,'G',0,0);
+    document.getElementById('viewBbBtn').onclick=()=>setBaseTranspose(2,'G',0,0);
+    document.getElementById('viewClefFBtn').onclick=()=>setBaseTranspose(scoreBaseTranspose,'F',0,-12);
     document.getElementById('viewOctUpBtn').onclick=()=>adjustOctaveShift(12);
     document.getElementById('viewOctDownBtn').onclick=()=>adjustOctaveShift(-12);
 

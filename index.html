@@ -949,6 +949,35 @@
       return 'curve';
     }
 
+    function findAlternativeTargetIndex(idx, dir, allowed, lastTarget){
+      const L = allowed.length;
+      if(L <= 1) return { idx, dir };
+
+      const options = [];
+
+      const pushIfValid = (candidateIdx, candidateDir)=>{
+        if(candidateIdx < 0 || candidateIdx >= L) return;
+        if(allowed[candidateIdx] === lastTarget) return;
+        options.push({ idx:candidateIdx, dir:candidateDir });
+      };
+
+      if(dir === 0) dir = 1;
+
+      pushIfValid(idx + dir, dir);
+      pushIfValid(idx - dir, -dir);
+
+      if(!options.length){
+        for(let step=1; step<L; step++){
+          pushIfValid(idx + step, 1);
+          pushIfValid(idx - step, -1);
+          if(options.length) break;
+        }
+      }
+
+      if(options.length) return options[0];
+      return { idx, dir };
+    }
+
     function generateLine(chord, upper, numFormulas, stabilityVal){
       const mode = chooseDirectionModeWeighted();
       const targetTypes = computeTargetTypes(chord, upper);
@@ -977,9 +1006,19 @@
       let isolatedRun = 0;
       let eventsCount = 0;
       const maxEvents = desired*4 + 12;
+      let lastTargetUsed = null;
 
       while(eventsCount < maxEvents && patternsUsed < desired){
-        const t = allowed[idx];
+        let currentIdx = idx;
+        let currentDir = dir;
+
+        if(lastTargetUsed != null && allowed[currentIdx] === lastTargetUsed){
+          const alt = findAlternativeTargetIndex(currentIdx, currentDir, allowed, lastTargetUsed);
+          currentIdx = alt.idx;
+          currentDir = alt.dir;
+        }
+
+        const t = allowed[currentIdx];
         targetSequence.push(t);
         eventsCount++;
 
@@ -1028,6 +1067,8 @@
         }
         const endIndex = line.length-1;
 
+        lastTargetUsed = t;
+
         if(isPattern && patternOffsets){
           formulaEvents.push({
             targetMidi: t,
@@ -1043,14 +1084,15 @@
           isolatedRun++;
         }
 
-        if(mode==='curve' && Math.random()<0.2) dir=-dir;
-        let nextIdx = idx+dir;
+        if(mode==='curve' && Math.random()<0.2) currentDir=-currentDir;
+        let nextIdx = currentIdx+currentDir;
         if(nextIdx<0 || nextIdx>=L){
-          dir=-dir;
-          nextIdx = idx+dir;
-          if(nextIdx<0 || nextIdx>=L) nextIdx=idx;
+          currentDir=-currentDir;
+          nextIdx = currentIdx+currentDir;
+          if(nextIdx<0 || nextIdx>=L) nextIdx=currentIdx;
         }
         idx=nextIdx;
+        dir=currentDir;
       }
 
       return { line, targetSequence, targetTypes, formulaEvents, mode };
@@ -2341,8 +2383,25 @@
       if(!candidates.length) candidates = cat[length];
       const newPattern = candidates[Math.floor(Math.random()*candidates.length)];
 
-      // nueva fórmula amarrada al mismo target
-      const newNotes = newPattern.map(off=>targetMidi+off);
+      const allowedTargets = buildAllowedTargets(state.chord || []);
+      let variationTarget = targetMidi;
+      if(allowedTargets.length){
+        if(!allowedTargets.includes(variationTarget)){
+          variationTarget = allowedTargets.reduce((best,candidate)=>{
+            if(best==null) return candidate;
+            const distBest = Math.abs(best-targetMidi);
+            const distCandidate = Math.abs(candidate-targetMidi);
+            if(distCandidate < distBest) return candidate;
+            if(distCandidate === distBest && Math.abs(candidate-variationTarget) < Math.abs(best-variationTarget)) return candidate;
+            return best;
+          }, null);
+        }
+      }
+      if(variationTarget==null) variationTarget = targetMidi;
+      if(typeof variationTarget !== 'number' || Number.isNaN(variationTarget)) return state;
+
+      // nueva fórmula amarrada al mismo target (ajustada a targets válidos)
+      const newNotes = newPattern.map(off=>variationTarget+off);
 
       const line = state.line.slice();
       const prevNote = startIndex>0 ? line[startIndex-1] : null;
@@ -2359,7 +2418,7 @@
         newNotes[i]=note;
       }
 
-      newNotes[newNotes.length-1] = targetMidi;
+      newNotes[newNotes.length-1] = variationTarget;
       if(newNotes.length>1 && newNotes[newNotes.length-2] === newNotes[newNotes.length-1]){
         newNotes[newNotes.length-2] += 1;
       }
@@ -2371,7 +2430,7 @@
       const newState = {...state};
       newState.line = line;
       const fe = state.formulaEvents.slice();
-      fe[formulaIdx] = {...f, offsets:newPattern.slice()};
+      fe[formulaIdx] = {...f, offsets:newPattern.slice(), targetMidi:variationTarget};
       newState.formulaEvents = fe;
       return newState;
     }

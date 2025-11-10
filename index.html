@@ -502,11 +502,41 @@
     <!-- VISTA PRINCIPAL -->
     <div id="mainView">
       <div class="app-card">
+        <!-- PANEL PARTITURA + PIANO -->
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Partitura</div>
+          </div>
+
+          <div class="score-wrapper">
+            <h2>Línea generada</h2>
+            <div class="score-toolbar">
+              <button id="viewOriginalBtn" class="btn-tiny">Original</button>
+              <button id="viewEbBtn" class="btn-tiny">A Eb</button>
+              <button id="viewBbBtn" class="btn-tiny">A Bb</button>
+              <button id="viewClefFBtn" class="btn-tiny">Clave de F</button>
+              <button id="viewOctDownBtn" class="btn-tiny">Octava ↓</button>
+              <button id="viewOctUpBtn" class="btn-tiny">Octava ↑</button>
+            </div>
+            <div id="osmd-container"></div>
+
+            <div class="row" style="margin-top:12px;">
+              <label>Teclado virtual</label>
+              <div id="pianoContainer" class="piano"></div>
+              <div class="status" id="pianoStatus">
+                Haz clic en las teclas para oír; usa “Capturar acordes con teclado virtual” y la barra espaciadora para fijar acordes principal y superior.
+              </div>
+              <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+                <button id="startKeyboardCaptureBtn" class="btn-ghost btn-tiny">Capturar acordes con teclado virtual</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- PANEL CONTROL -->
         <div class="panel">
           <div class="panel-header">
             <div class="panel-title">Control</div>
-            <div class="panel-tag">Realtime · MIDI / Audio</div>
           </div>
 
           <div class="control-grid">
@@ -531,12 +561,12 @@
               </div>
 
               <div class="row">
-                <label>Acorde principal (ej. C4,E4,G4,B4)</label>
+                <label>Target(s)</label>
                 <input id="chordMidi" type="text" value="C4,E4,G4,B4" />
               </div>
 
               <div class="row">
-                <label>Acorde vecino superior (ej. D4,F4,A4,C5)</label>
+                <label>Vecina(s) superior(es)</label>
                 <input id="upperChordMidi" type="text" value="D4,F4,A4,C5" />
               </div>
 
@@ -653,38 +683,6 @@
             <code id="lineOut"></code>
           </div>
         </div>
-
-        <!-- PANEL PARTITURA + PIANO -->
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title">Partitura</div>
-            <div class="panel-tag">MusicXML · Render</div>
-          </div>
-
-          <div class="score-wrapper">
-            <h2>Línea generada</h2>
-            <div class="score-toolbar">
-              <button id="viewOriginalBtn" class="btn-tiny">Original</button>
-              <button id="viewEbBtn" class="btn-tiny">A Eb</button>
-              <button id="viewBbBtn" class="btn-tiny">A Bb</button>
-              <button id="viewClefFBtn" class="btn-tiny">Clave de F</button>
-              <button id="viewOctDownBtn" class="btn-tiny">Octava ↓</button>
-              <button id="viewOctUpBtn" class="btn-tiny">Octava ↑</button>
-            </div>
-            <div id="osmd-container"></div>
-
-            <div class="row" style="margin-top:12px;">
-              <label>Teclado virtual</label>
-              <div id="pianoContainer" class="piano"></div>
-              <div class="status" id="pianoStatus">
-                Haz clic en las teclas para oír; usa “Capturar acordes con teclado virtual” y la barra espaciadora para fijar acordes principal y superior.
-              </div>
-              <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-                <button id="startKeyboardCaptureBtn" class="btn-ghost btn-tiny">Capturar acordes con teclado virtual</button>
-              </div>
-            </div>
-          </div>
-        </div>
       </div> <!-- app-card -->
     </div> <!-- mainView -->
 
@@ -733,6 +731,38 @@
         6:[[-2,1,-3,-2,1,-1,0],[1,-3,-2,1,-2,-1,0],[-2,1,-2,-1,1,-1,0],[1,-2,1,-3,-2,-1,0]],
       }
     };
+
+    const STABILITY_LEVELS = [
+      { description: 'Solo simples', weights: {1:1} },
+      { description: 'Más simples que dobles', weights: {1:0.75, 2:0.25} },
+      { description: 'Más dobles que simples', weights: {1:0.4, 2:0.6} },
+      { description: 'Solo dobles', weights: {2:1} },
+      { description: 'Más dobles que triples', weights: {2:0.65, 3:0.35} },
+      { description: 'Más triples que dobles', weights: {2:0.45, 3:0.55} },
+      { description: 'Solo triples', weights: {3:1} },
+      { description: 'Más triples que cuádruples', weights: {3:0.6, 4:0.4} },
+      { description: 'Más cuádruples que triples', weights: {3:0.35, 4:0.65} },
+      { description: 'Solo cuádruples', weights: {4:1} },
+      { description: 'Más cuádruples que quíntuples', weights: {4:0.55, 5:0.45} },
+      { description: 'Más quíntuples que cuádruples', weights: {4:0.35, 5:0.65} },
+      { description: 'Solo quíntuples', weights: {5:1} },
+      { description: 'Más quíntuples que séxtuples', weights: {5:0.55, 6:0.45} },
+      { description: 'Más séxtuples que quíntuples', weights: {5:0.35, 6:0.65} },
+      { description: 'Solo séxtuples', weights: {6:1} },
+    ];
+
+    function getStabilityLevelFromValue(value){
+      const v = Math.max(0, Math.min(100, Number(value) || 0));
+      return Math.min(15, Math.floor(v / (100/16))) + 1;
+    }
+
+    function getStabilityConfig(value){
+      const level = getStabilityLevelFromValue(value);
+      const config = STABILITY_LEVELS[level-1];
+      const weights = {1:0,2:0,3:0,4:0,5:0,6:0, ...config.weights};
+      const stabilizeProbability = Math.max(0, (16 - level) / 15);
+      return { level, description: config.description, weights, stabilizeProbability };
+    }
 
     // ===== UTILIDADES NOTAS =====
     const naturalSteps = {0:'C',2:'D',4:'E',5:'F',7:'G',9:'A',11:'B'};
@@ -852,50 +882,43 @@
 
     function updateStabilityLabel(){
       const v = Number(document.getElementById('stability').value);
-      let txt;
-      if(v <= 20) txt = "muy estable (targets casi siempre en corcheas impares)";
-      else if(v <= 40) txt = "estable";
-      else if(v <= 60) txt = "media";
-      else if(v <= 80) txt = "inestable";
-      else txt = "muy inestable (no se respeta la posición de los targets)";
-      document.getElementById('stabilityLabel').textContent = "Estabilidad: " + txt;
+      const cfg = getStabilityConfig(v);
+      document.getElementById('stabilityLabel').textContent =
+        `Estabilidad: nivel ${cfg.level} · ${cfg.description}`;
     }
 
-    function pickPatternLengthForCat(cat){
+    function pickPatternLengthForCat(cat, weightsMap){
       const random = document.getElementById('randomComplex').checked;
       const keysAll = Object.keys(cat).map(Number);
       if(random){
         return keysAll[Math.floor(Math.random()*keysAll.length)];
       }
-      const zone = getComplexityZone();
-      let options = [];
-      const strong = 0.7, weak = 0.3;
-      switch(zone){
-        case 0: options = [{len:2,w:strong},{len:3,w:weak}]; break;
-        case 1: options = [{len:2,w:weak},{len:3,w:strong}]; break;
-        case 2: options = [{len:3,w:strong},{len:4,w:weak}]; break;
-        case 3: options = [{len:3,w:weak},{len:4,w:strong}]; break;
-        case 4: options = [{len:4,w:strong},{len:5,w:weak}]; break;
-        case 5: options = [{len:5,w:strong},{len:6,w:weak}]; break;
-        case 6: default: options = [{len:5,w:weak},{len:6,w:strong}]; break;
+      const weights = weightsMap || {};
+      const available = keysAll.filter(len => cat[len]);
+      const weighted = available.filter(len => (weights[len] ?? 0) > 0);
+      const pool = weighted.length ? weighted : available;
+      if(!pool.length) return null;
+      let total = 0;
+      pool.forEach(len => { total += (weights[len] ?? 1); });
+      if(total <= 0){
+        return pool[Math.floor(Math.random()*pool.length)];
       }
-      options = options.filter(o => cat[o.len]);
-      if(!options.length){
-        return keysAll[Math.floor(Math.random()*keysAll.length)];
-      }
-      const total = options.reduce((s,o)=>s+o.w,0);
       let r = Math.random()*total;
-      for(const o of options){
-        if(r < o.w) return o.len;
-        r -= o.w;
+      for(const len of pool){
+        const w = weights[len] ?? 1;
+        if(r < w) return len;
+        r -= w;
       }
-      return options[options.length-1].len;
+      return pool[pool.length-1];
     }
 
-    function choosePatternForType(t){
+    function choosePatternForType(t, weightsMap){
       const cat = APPROACH_PATTERNS[t];
-      const len = pickPatternLengthForCat(cat);
+      if(!cat) return null;
+      const len = pickPatternLengthForCat(cat, weightsMap);
+      if(!len) return null;
       const list = cat[len];
+      if(!list || !list.length) return null;
       return {pattern: list[Math.floor(Math.random()*list.length)], len};
     }
 
@@ -940,7 +963,10 @@
 
       let idx = Math.floor(Math.random()*L);
       const ISOLATED_PROB = 0.5;
-      const stabilizeProb = (100 - stabilityVal) / 100;
+      const ISOLATED_PAIR_PROB = 0.25;
+      const stabilityConfig = getStabilityConfig(stabilityVal);
+      const patternWeights = stabilityConfig.weights;
+      const stabilizeProb = stabilityConfig.stabilizeProbability;
 
       const line = [];
       const formulaEvents = [];
@@ -963,34 +989,41 @@
 
         if(!usePattern && isolatedRun >= 2 && type) usePattern = true;
 
-        let chosen = null;
         let eventNotes = [t];
         let isPattern = false;
         let patternOffsets = null;
 
         if(usePattern && type){
-          chosen = choosePatternForType(type);
-          let pattern = chosen.pattern;
-          const wantStabilize = (Math.random() < stabilizeProb);
-          if(wantStabilize){
-            const Lp = pattern.length;
-            const posTarget = noteIndexBefore + Lp - 1;
-            const targetWouldBeEven = (posTarget % 2 === 0);
-            if(targetWouldBeEven && isolatedRun < 2){
-              pattern = null;
+          const chosen = choosePatternForType(type, patternWeights);
+          if(chosen && Array.isArray(chosen.pattern)){
+            let pattern = chosen.pattern;
+            const wantStabilize = (Math.random() < stabilizeProb);
+            if(wantStabilize){
+              const Lp = pattern.length;
+              const posTarget = noteIndexBefore + Lp - 1;
+              const targetWouldBeEven = (posTarget % 2 === 0);
+              if(targetWouldBeEven && isolatedRun < 2){
+                pattern = null;
+              }
             }
-          }
-          if(pattern){
-            patternOffsets = pattern.slice();
-            eventNotes = pattern.map(off=>t+off);
-            isPattern = true;
+            if(pattern){
+              patternOffsets = pattern.slice();
+              eventNotes = pattern.map(off=>t+off);
+              isPattern = true;
+            }
           }
         }
 
+        if(!isPattern){
+          const isolatedCount = Math.random() < ISOLATED_PAIR_PROB ? 2 : 1;
+          eventNotes = new Array(isolatedCount).fill(t);
+        }
+
         const startIndex = line.length;
+        const allowRepeatTarget = !isPattern && eventNotes.every(n=>n===t);
         for(let j=0;j<eventNotes.length;j++){
           let note=eventNotes[j];
-          if(line.length>0 && line[line.length-1]===note) note+=1;
+          if(line.length>0 && line[line.length-1]===note && !allowRepeatTarget) note+=1;
           line.push(note);
         }
         const endIndex = line.length-1;
@@ -1122,11 +1155,10 @@
       const text = chord.map(midiToNoteNameWithOctave).join(',');
       const id = mode==='main' ? 'chordMidi' : 'upperChordMidi';
       document.getElementById(id).value = text;
-      setText(
-        'midiLearnStatus',
-        (mode==='main' ? 'Acorde principal' : 'Acorde superior') +
-        ' aprendido por MIDI: ' + text
-      );
+      const label = mode==='main'
+        ? 'Target(s) capturado(s) por MIDI'
+        : 'Vecina(s) superior(es) capturada(s) por MIDI';
+      setText('midiLearnStatus', label + ': ' + text);
     }
 
     function startMidiLearn(mode){
@@ -1138,8 +1170,8 @@
       setText(
         'midiLearnStatus',
         mode==='main'
-          ? 'MIDI learn activo para acorde principal.'
-          : 'MIDI learn activo para acorde superior.'
+          ? 'MIDI learn activo para target(s).'
+          : 'MIDI learn activo para vecina(s) superior(es).'
       );
     }
 
@@ -1174,9 +1206,9 @@
 
       let whiteIndex = 0;
       const octaveStart = 3;
-      const octaveEnd = 5;
+      const octaveEnd = 6;
 
-      // Teclas blancas C3–B5
+      // Teclas blancas C3–B6
       for(let oct = octaveStart; oct <= octaveEnd; oct++){
         for(let i=0;i<whiteSteps.length;i++){
           const step = whiteSteps[i];
@@ -1196,19 +1228,7 @@
           whiteIndex++;
         }
       }
-
-      // C6
-      const midiC6 = (6+1)*12 + 0;
-      const xC6 = whiteIndex * WHITE_KEY_WIDTH;
-      const keyC6 = document.createElement('div');
-      keyC6.className = 'piano-key white';
-      keyC6.dataset.midi = midiC6;
-      keyC6.style.left = xC6 + 'px';
-      keyC6.textContent = midiToNoteNameWithOctave(midiC6);
-      keyC6.addEventListener('click', ()=>onPianoKeyClick(midiC6));
-      whitesWrapper.appendChild(keyC6);
-      pianoKeyElements.set(midiC6, keyC6);
-      const totalWhites = whiteIndex + 1;
+      const totalWhites = whiteIndex;
 
       // Negras: C#, D#, F#, G#, A#
       const blackSpecs = [
@@ -1272,6 +1292,7 @@
     }
 
     function startKeyboardCapture(){
+      stopPlayback();
       learnMode = null;
       if(learnTimer){ clearTimeout(learnTimer); learnTimer=null; }
       chordCaptureMode = 'main';
@@ -1300,48 +1321,158 @@
     }
 
     window.addEventListener('keydown', (e)=>{
-      if(e.code === 'Space' && chordCaptureMode){
+      if(e.code === 'Space'){
+        if(chordCaptureMode){
+          e.preventDefault();
+          finalizeKeyboardChordCapture();
+          return;
+        }
+        const active = document.activeElement;
+        if(active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)){
+          return;
+        }
+        if(e.repeat) return;
         e.preventDefault();
-        finalizeKeyboardChordCapture();
+        togglePlayback();
       }
     });
 
+    let viewTranspose = 0;
+    let viewClef = 'G';
+    let viewOctaveShift = 0;
+    let currentScoreNoteGroups = [];
+
+    function getPlaybackTranspose(){
+      return viewTranspose + viewOctaveShift;
+    }
+
     // ===== REPRODUCCIÓN =====
-    function playLine(line,bpm){
-      const useAudio = !midiOutput;
-      const spb = 60/bpm;
-      const beatMs = 60000/bpm;
+    let playbackState = null;
 
-      line.forEach((m,i)=>{
-        const startMs = i*(beatMs/2);
-        const durMs = (beatMs/2)*0.9;
-        setTimeout(()=>highlightKey(m,true), startMs);
-        setTimeout(()=>highlightKey(m,false), startMs + durMs);
-      });
+    function updatePlayButtonState(){
+      const btn = document.getElementById('playBtn');
+      if(!btn) return;
+      btn.textContent = playbackState ? 'Detener' : 'Reproducir';
+    }
 
-      if(useAudio){
-        if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-        const now=audioCtx.currentTime;
-        line.forEach((m,i)=>{
-          const s=now+i*(spb/2), e=s+(spb/2)*0.9;
-          const osc=audioCtx.createOscillator();
-          const g=audioCtx.createGain();
-          osc.frequency.value=midiToFreq(m);
-          g.gain.setValueAtTime(0.0001,s);
-          g.gain.exponentialRampToValueAtTime(0.3,s+0.01);
-          g.gain.exponentialRampToValueAtTime(0.0001,e);
-          osc.connect(g).connect(audioCtx.destination);
-          osc.start(s); osc.stop(e+0.05);
-        });
+    function createScheduledAudioNode(midi, durationMs){
+      if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      const osc=audioCtx.createOscillator();
+      const g=audioCtx.createGain();
+      const now=audioCtx.currentTime;
+      osc.frequency.value=midiToFreq(midi);
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.3, now+0.01);
+      const endTime = now + durationMs/1000;
+      g.gain.exponentialRampToValueAtTime(0.0001, endTime);
+      osc.connect(g).connect(audioCtx.destination);
+      osc.start(now);
+      const stopTimer = setTimeout(()=>{ try{osc.stop();}catch(e){}; }, durationMs+120);
+      return {osc, gain:g, stopTimer};
+    }
+
+    function scheduleNextPlaybackStep(){
+      if(!playbackState) return;
+      if(playbackState.index >= playbackState.originalLine.length){
+        stopPlayback();
+        return;
+      }
+
+      const idx = playbackState.index;
+      const midi = playbackState.line[idx];
+      const noteDuration = playbackState.noteDuration;
+      const stepMs = playbackState.stepMs;
+
+      highlightKey(midi,true);
+      playbackState.activeNoteIndices.add(idx);
+      highlightScoreNote(idx,true);
+
+      if(midiOutput){
+        midiOutput.send([0x90, midi & 0x7F, 100]);
+        playbackState.activeMidi.add(midi & 0x7F);
+        const offTimer = setTimeout(()=>{
+          midiOutput.send([0x80, midi & 0x7F, 0]);
+          playbackState.activeMidi.delete(midi & 0x7F);
+        }, noteDuration);
+        playbackState.timers.push(offTimer);
       }else{
-        const base = performance.now();
-        line.forEach((m,i)=>{
-          const on = base + i*(beatMs/2);
-          const off = on + (beatMs/2)*0.9;
-          midiOutput.send([0x90,m,100], on);
-          midiOutput.send([0x80,m,0], off);
+        const node = createScheduledAudioNode(midi, noteDuration);
+        playbackState.audioNodes.push(node);
+        playbackState.timers.push(node.stopTimer);
+      }
+
+      const releaseTimer = setTimeout(()=>{
+        highlightKey(midi,false);
+        highlightScoreNote(idx,false);
+        playbackState.activeNoteIndices.delete(idx);
+      }, noteDuration);
+      playbackState.timers.push(releaseTimer);
+
+      playbackState.index++;
+      const nextTimer = setTimeout(scheduleNextPlaybackStep, stepMs);
+      playbackState.timers.push(nextTimer);
+    }
+
+    function startPlayback(line, bpm){
+      stopPlayback();
+      if(!line || !line.length) return;
+      const transpose = getPlaybackTranspose();
+      const applied = line.map(n=>n + transpose);
+      const stepMs = (60000/bpm)/2;
+      const noteDuration = stepMs*0.9;
+      playbackState = {
+        originalLine: line.slice(),
+        line: applied,
+        stepMs,
+        noteDuration,
+        index: 0,
+        timers: [],
+        audioNodes: [],
+        activeMidi: new Set(),
+        activeNoteIndices: new Set(),
+      };
+      updatePlayButtonState();
+      scheduleNextPlaybackStep();
+    }
+
+    function stopPlayback(){
+      if(!playbackState) return;
+      playbackState.timers.forEach(id=>clearTimeout(id));
+      playbackState.timers = [];
+      playbackState.audioNodes.forEach(node=>{
+        if(!audioCtx) return;
+        try{
+          const now = audioCtx.currentTime;
+          node.gain.gain.cancelScheduledValues(now);
+          node.gain.gain.setTargetAtTime(0.0001, now, 0.01);
+          node.osc.stop(now + 0.05);
+        }catch(e){}
+      });
+      playbackState.audioNodes = [];
+      if(midiOutput){
+        playbackState.activeMidi.forEach(note=>{
+          midiOutput.send([0x80, note & 0x7F, 0]);
         });
       }
+      playbackState.activeMidi.clear();
+      playbackState.activeNoteIndices.forEach(idx=>highlightScoreNote(idx,false));
+      playbackState.activeNoteIndices.clear();
+      pianoKeyElements.forEach(el=>el.classList.remove('playing'));
+      playbackState = null;
+      updatePlayButtonState();
+    }
+
+    function togglePlayback(){
+      if(playbackState){
+        stopPlayback();
+        return;
+      }
+      if(!currentGeneratedState || !currentGeneratedState.line || !currentGeneratedState.line.length){
+        alert('Genera una línea primero');
+        return;
+      }
+      const bpm = +document.getElementById('tempo').value || 240;
+      startPlayback(currentGeneratedState.line, bpm);
     }
 
     // ===== PARTITURAS (OSMD) =====
@@ -1567,6 +1698,29 @@
       });
     }
 
+    function refreshScoreNoteheads(){
+      const svg = document.querySelector('#osmd-container svg');
+      currentScoreNoteGroups = svg ? Array.from(svg.querySelectorAll('.vf-notehead')) : [];
+    }
+
+    function highlightScoreNote(index, on){
+      const group = currentScoreNoteGroups[index];
+      if(!group) return;
+      const shape = group.querySelector('path, ellipse');
+      if(!shape) return;
+      if(on){
+        if(shape.dataset.originalFill === undefined){
+          shape.dataset.originalFill = shape.style.fill || '';
+        }
+        shape.style.fill = '#c084fc';
+      }else{
+        if(shape.dataset.originalFill !== undefined){
+          shape.style.fill = shape.dataset.originalFill;
+          delete shape.dataset.originalFill;
+        }
+      }
+    }
+
     async function renderScoreFromLine(line, chord, clef='G', transposeSemitones=0, formulaEvents){
       if(!window.opensheetmusicdisplay || !line || !line.length) return;
       const modLine = transposeSemitones ? line.map(n=>n+transposeSemitones) : line;
@@ -1588,6 +1742,26 @@
       if(formulaEvents && formulaEvents.length){
         highlightFormulaTargets(formulaEvents, '#osmd-container');
       }
+      refreshScoreNoteheads();
+    }
+
+    async function updateScoreView(){
+      if(!currentGeneratedState || !currentGeneratedState.line || !currentGeneratedState.line.length){
+        currentScoreNoteGroups = [];
+        if(osmdMain && typeof osmdMain.clear === 'function'){
+          osmdMain.clear();
+        }
+        const container = document.getElementById('osmd-container');
+        if(container) container.innerHTML = '';
+        return;
+      }
+      await renderScoreFromLine(
+        currentGeneratedState.line,
+        currentGeneratedState.chord || [],
+        viewClef,
+        getPlaybackTranspose(),
+        currentGeneratedState.formulaEvents || []
+      );
     }
 
     async function renderFormulaInDict(notes, label){
@@ -1934,16 +2108,11 @@
         btn.textContent='Variación';
         btn.className='btn-tiny';
         btn.onclick=()=>{
+          stopPlayback();
           currentGeneratedState = applyVariationOnFormula(currentGeneratedState, idx);
           const line=currentGeneratedState.line;
           document.getElementById('lineOut').textContent=line.join(',');
-          renderScoreFromLine(
-            line,
-            currentGeneratedState.chord || [],
-            'G',
-            0,
-            currentGeneratedState.formulaEvents
-          );
+          updateScoreView();
           updateLineFormulasList(currentGeneratedState);
           addToHistory(currentGeneratedState);
         };
@@ -1955,6 +2124,7 @@
 
     function loadHistoryAt(index){
       if(index<0 || index>=generationHistory.length) return;
+      stopPlayback();
       currentHistoryIndex = index;
       updateHistoryLabel();
       const state = generationHistory[index];
@@ -1978,9 +2148,7 @@
       if(state.targetTypes && typesOut){
         typesOut.textContent = Object.entries(state.targetTypes).map(([pc,t])=>`pc${pc}:${t}`).join(' ');
       }
-      if(state.line){
-        renderScoreFromLine(state.line, state.chord || [], 'G', 0, state.formulaEvents || []);
-      }
+      updateScoreView();
       updateLineFormulasList(state);
     }
 
@@ -2085,6 +2253,7 @@
     function loadSavedLine(idx){
       const state = savedLines[idx];
       if(!state) return;
+      stopPlayback();
       currentGeneratedState = state;
       document.getElementById('chordMidi').value = (state.chord||[]).map(midiToNoteNameWithOctave).join(',');
       document.getElementById('upperChordMidi').value = (state.upper||[]).map(midiToNoteNameWithOctave).join(',');
@@ -2098,9 +2267,7 @@
 
       const lineOut = document.getElementById('lineOut');
       if(state.line && lineOut) lineOut.textContent = state.line.join(',');
-      if(state.line){
-        renderScoreFromLine(state.line, state.chord || [], 'G', 0, state.formulaEvents || []);
-      }
+      updateScoreView();
       updateLineFormulasList(state);
     }
 
@@ -2261,6 +2428,7 @@
     // ===== UI PRINCIPAL =====
     document.getElementById('generateBtn').onclick = async ()=>{
       try{
+        stopPlayback();
         const chord=parseNoteList(document.getElementById('chordMidi').value);
         const upper=parseNoteList(document.getElementById('upperChordMidi').value);
         const numFormulas=+document.getElementById('numFormulas').value;
@@ -2298,21 +2466,13 @@
 
         addToHistory(state);
         updateLineFormulasList(state);
-        await renderScoreFromLine(line, chord, 'G', 0, formulaEvents);
+        await updateScoreView();
       }catch(e){
         alert(e.message);
       }
     };
 
-    document.getElementById('playBtn').onclick=()=>{
-      const lineOut = document.getElementById('lineOut');
-      if(!lineOut){ alert('Genera una línea primero'); return; }
-      const txt=lineOut.textContent.trim();
-      if(!txt){ alert('Genera una línea primero'); return; }
-      const line=txt.split(',').map(x=>+x.trim()).filter(n=>!isNaN(n));
-      const bpm=+document.getElementById('tempo').value;
-      playLine(line,bpm);
-    };
+    document.getElementById('playBtn').onclick=togglePlayback;
 
     document.getElementById('exportMidiBtn').onclick=()=>{
       const lineOut = document.getElementById('lineOut');
@@ -2366,29 +2526,35 @@
 
     document.getElementById('startKeyboardCaptureBtn').onclick=startKeyboardCapture;
 
-    function showLineTransposed(semitones, clef){
-      if(!currentGeneratedState || !currentGeneratedState.line) return;
-      renderScoreFromLine(
-        currentGeneratedState.line,
-        currentGeneratedState.chord || [],
-        clef || 'G',
-        semitones,
-        currentGeneratedState.formulaEvents || []
-      );
+    function updateScoreViewAfterChange(){
+      stopPlayback();
+      updateScoreView();
     }
 
-    document.getElementById('viewOriginalBtn').onclick=()=>showLineTransposed(0,'G');
-    document.getElementById('viewEbBtn').onclick=()=>showLineTransposed(3,'G');
-    document.getElementById('viewBbBtn').onclick=()=>showLineTransposed(-2,'G');
-    document.getElementById('viewClefFBtn').onclick=()=>showLineTransposed(0,'F');
-    document.getElementById('viewOctUpBtn').onclick=()=>showLineTransposed(12,'G');
-    document.getElementById('viewOctDownBtn').onclick=()=>showLineTransposed(-12,'G');
+    function setBaseTranspose(semitones, clef){
+      viewTranspose = semitones;
+      if(clef) viewClef = clef;
+      updateScoreViewAfterChange();
+    }
+
+    function adjustOctaveShift(delta){
+      viewOctaveShift += delta;
+      updateScoreViewAfterChange();
+    }
+
+    document.getElementById('viewOriginalBtn').onclick=()=>setBaseTranspose(0,'G');
+    document.getElementById('viewEbBtn').onclick=()=>setBaseTranspose(3,'G');
+    document.getElementById('viewBbBtn').onclick=()=>setBaseTranspose(-2,'G');
+    document.getElementById('viewClefFBtn').onclick=()=>setBaseTranspose(viewTranspose,'F');
+    document.getElementById('viewOctUpBtn').onclick=()=>adjustOctaveShift(12);
+    document.getElementById('viewOctDownBtn').onclick=()=>adjustOctaveShift(-12);
 
     // Tabs Generador / Diccionario
     const tabMainBtn = document.getElementById('tabMainBtn');
     const tabDictBtn = document.getElementById('tabDictBtn');
 
     function showView(which){
+      stopPlayback();
       const mainView=document.getElementById('mainView');
       const dictView=document.getElementById('dictView');
       if(which==='dict'){

@@ -61,6 +61,86 @@
       margin-bottom: 20px;
     }
 
+    .info-button-row {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 18px;
+    }
+
+    .info-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.88);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 1000;
+    }
+
+    .info-modal-overlay.visible {
+      display: flex;
+    }
+
+    .info-modal {
+      width: 100%;
+      max-width: 780px;
+      max-height: 90vh;
+      overflow-y: auto;
+      background: linear-gradient(135deg, rgba(15,23,42,0.95), rgba(2,6,23,0.96));
+      border: 1px solid rgba(148,163,184,0.5);
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.85);
+    }
+
+    .info-modal header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .info-modal h2 {
+      margin: 0;
+      font-size: 20px;
+      color: #f9fafb;
+    }
+
+    .info-modal h3 {
+      margin-top: 18px;
+      margin-bottom: 8px;
+      font-size: 15px;
+      color: #f97316;
+    }
+
+    .info-modal p,
+    .info-modal li {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-soft);
+    }
+
+    .info-modal ul {
+      margin: 0 0 12px 18px;
+      padding: 0;
+    }
+
+    .info-modal-close {
+      border: none;
+      background: rgba(15,23,42,0.85);
+      color: var(--text-soft);
+      padding: 6px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+
+    .info-modal-close:hover {
+      color: #fefce8;
+      border: 1px solid var(--accent);
+    }
+
     .app-card {
       background: radial-gradient(circle at 0 0, #020617 0, #020617 45%, #020617 100%);
       border-radius: 20px;
@@ -576,6 +656,10 @@
     <h1>Targeting Generator - Bebop Jazz, by Jaime Jaramillo Arias.</h1>
     <div class="app-subtitle">Líneas bebop generadas por targeting diatónico y fórmulas de aproximación.</div>
 
+    <div class="info-button-row">
+      <button id="infoBtn" class="btn-ghost btn-tiny">Información y uso</button>
+    </div>
+
     <div class="tab-bar">
       <button id="tabMainBtn" class="btn-tiny btn-primary">Generador</button>
       <button id="tabDictBtn" class="btn-tiny">Diccionario de fórmulas</button>
@@ -639,6 +723,7 @@
                     <option value="">(sin salida MIDI)</option>
                   </select>
                   <div class="status" id="midiOutStatus">Ninguna salida seleccionada.</div>
+                  <div class="status" id="webPlaybackStatus">Reproducción web activa. Sonará el sintetizador interno.</div>
                 </div>
               </div>
 
@@ -791,6 +876,59 @@
       </div>
     </div>
 
+  </div>
+
+  <div id="infoModal" class="info-modal-overlay" aria-hidden="true">
+    <div class="info-modal" role="dialog" aria-modal="true" aria-labelledby="infoModalTitle">
+      <header>
+        <h2 id="infoModalTitle">Información y uso</h2>
+        <button id="infoModalClose" type="button" class="info-modal-close">Cerrar</button>
+      </header>
+      <div class="info-modal-body">
+        <p>
+          Targeting Generator crea líneas bebop a partir de acordes objetivo (targets) y sus vecinas superiores.
+          Combina fórmulas de aproximación clásicas con notas aisladas para producir frases listas para practicar,
+          exportar o analizar.
+        </p>
+
+        <h3>Generador de líneas</h3>
+        <ul>
+          <li>Define los <strong>Target(s)</strong> y sus vecinas superiores manualmente, por captura MIDI o usando el piano virtual.</li>
+          <li>Ajusta el rango, número de fórmulas, tempo y nivel de complejidad/estabilidad para moldear la frase.</li>
+          <li>Pulsa «Generar línea» para obtener una secuencia con targets resaltados en la partitura y en la lista lateral.</li>
+        </ul>
+
+        <h3>¿Qué produce la aplicación?</h3>
+        <ul>
+          <li>Una línea melódica en notación musical renderizada con OpenSheetMusicDisplay.</li>
+          <li>Eventos de fórmulas que indican tipo, longitud y offsets respecto al target final.</li>
+          <li>Exportaciones en formato MIDI y MusicXML, tanto de la línea actual como de colecciones guardadas.</li>
+        </ul>
+
+        <h3>¿Cómo se construyen las líneas?</h3>
+        <p>
+          El algoritmo recorre los targets disponibles dentro del rango permitido. Para cada target decide, según la
+          complejidad y estabilidad seleccionadas, si usa una fórmula de aproximación o una nota aislada. Las fórmulas se
+          eligen ponderando su longitud y se adaptan para evitar repeticiones exactas y para que el target siempre sea la
+          última nota. Cuando existe más de un target posible, dos fórmulas consecutivas nunca concluyen en la misma nota
+          para mantener variedad melódica.
+        </p>
+
+        <h3>Reproducción y MIDI</h3>
+        <ul>
+          <li>La reproducción web usa un sintetizador interno siempre que no haya una salida MIDI externa seleccionada.</li>
+          <li>Al elegir un puerto MIDI, la salida web se desactiva automáticamente y la ejecución se envía al dispositivo externo.</li>
+          <li>El piano virtual, el aprendizaje MIDI y el reproductor destacan las notas interpretadas para facilitar el estudio.</li>
+        </ul>
+
+        <h3>Historial, variaciones y guardado</h3>
+        <ul>
+          <li>Cada generación se guarda en un historial navegable para volver rápidamente a versiones anteriores.</li>
+          <li>Desde «Fórmulas en la línea» puedes pedir variaciones que sustituyen la fórmula seleccionada por otra del mismo tipo.</li>
+          <li>Las líneas guardadas almacenan tempo, targets, configuraciones y fórmulas para exportar en lote o reusar más adelante.</li>
+        </ul>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -1094,6 +1232,7 @@
       let eventsCount = 0;
       const maxEvents = desired*4 + 12;
       let lastTargetUsed = null;
+      let lastFormulaTarget = null;
 
       while(eventsCount < maxEvents && patternsUsed < desired){
         let currentIdx = idx;
@@ -1105,13 +1244,26 @@
           currentDir = alt.dir;
         }
 
-        const t = allowed[currentIdx];
-        targetSequence.push(t);
-        eventsCount++;
-
-        const type = targetTypes[pitchClass(t)];
+        let t = allowed[currentIdx];
+        let type = targetTypes[pitchClass(t)];
         const noteIndexBefore = line.length + 1;
         let usePattern = !!type && (Math.random() >= ISOLATED_PROB);
+        let blockedFormulaRepeat = false;
+
+        if(usePattern && lastFormulaTarget != null && t === lastFormulaTarget && L>1){
+          const altFormula = findAlternativeTargetIndex(currentIdx, currentDir, allowed, lastFormulaTarget);
+          currentIdx = altFormula.idx;
+          currentDir = altFormula.dir;
+          t = allowed[currentIdx];
+          type = targetTypes[pitchClass(t)];
+          if(!type || t === lastFormulaTarget){
+            usePattern = false;
+            blockedFormulaRepeat = true;
+          }
+        }
+
+        targetSequence.push(t);
+        eventsCount++;
 
         let allowDouble = false;
 
@@ -1155,7 +1307,7 @@
         }
 
         if(!isPattern){
-          if(type && isolatedRun >= 1 && (!allowDouble || isolatedDoublesUsed >= 1)){
+          if(!blockedFormulaRepeat && type && isolatedRun >= 1 && (!allowDouble || isolatedDoublesUsed >= 1)){
             const fallback = choosePatternForType(type, complexityWeights);
             if(fallback && Array.isArray(fallback.pattern)){
               eventNotes = fallback.pattern.map(off=>t+off);
@@ -1193,6 +1345,7 @@
             endIndex
           };
           formulaEvents.push(formulaEvent);
+          lastFormulaTarget = t;
           eventsLog.push({
             kind: 'formula',
             targetMidi: t,
@@ -1231,7 +1384,32 @@
 
     // ===== AUDIO =====
     let audioCtx=null;
+    let webPlaybackEnabled = true;
     const midiToFreq = m => 440*Math.pow(2,(m-69)/12);
+
+    function setWebPlaybackEnabled(enabled){
+      const next = !!enabled;
+      const changed = next !== webPlaybackEnabled;
+      webPlaybackEnabled = next;
+      if(changed && !webPlaybackEnabled && audioCtx){
+        try{ audioCtx.close(); }catch(e){}
+        audioCtx = null;
+      }
+      const status = document.getElementById('webPlaybackStatus');
+      if(status){
+        status.textContent = webPlaybackEnabled
+          ? 'Reproducción web activa. Sonará el sintetizador interno.'
+          : 'Reproducción web desactivada: se usará únicamente la salida MIDI seleccionada.';
+      }
+    }
+
+    function syncWebPlaybackWithOutput(){
+      setWebPlaybackEnabled(!midiOutput);
+    }
+
+    function shouldUseWebAudio(){
+      return webPlaybackEnabled;
+    }
 
     function playSingleNote(midi, durationMs){
       let midiOffTimer=null;
@@ -1242,20 +1420,28 @@
           midiOutput && midiOutput.send([0x80, midi & 0x7F, 0]);
         }, durationMs);
       }
-      if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-      const osc=audioCtx.createOscillator();
-      const g=audioCtx.createGain();
-      const now=audioCtx.currentTime;
-      osc.frequency.value=midiToFreq(midi);
-      g.gain.setValueAtTime(0.0001, now);
-      g.gain.exponentialRampToValueAtTime(0.3, now+0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + durationMs/1000);
-      osc.connect(g).connect(audioCtx.destination);
-      osc.start(now);
-      const stopAt = now + durationMs/1000 + 0.05;
-      const highlightTimer = setTimeout(()=>highlightKey(midi,false), durationMs);
-      osc.stop(stopAt);
+
+      let highlightTimer=null;
+      let osc=null;
+      let gainNode=null;
       highlightKey(midi,true);
+
+      if(shouldUseWebAudio()){
+        if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+        osc=audioCtx.createOscillator();
+        gainNode=audioCtx.createGain();
+        const now=audioCtx.currentTime;
+        osc.frequency.value=midiToFreq(midi);
+        gainNode.gain.setValueAtTime(0.0001, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.3, now+0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, now + durationMs/1000);
+        osc.connect(gainNode).connect(audioCtx.destination);
+        osc.start(now);
+        const stopAt = now + durationMs/1000 + 0.05;
+        osc.stop(stopAt);
+      }
+
+      highlightTimer = setTimeout(()=>highlightKey(midi,false), durationMs);
 
       return ()=>{
         if(midiOffTimer){
@@ -1263,9 +1449,17 @@
           midiOutput && midiOutput.send([0x80, midi & 0x7F, 0]);
           midiOffTimer=null;
         }
-        clearTimeout(highlightTimer);
-        highlightKey(midi,false);
-        try{ osc.stop(); }catch(e){}
+        if(highlightTimer){
+          clearTimeout(highlightTimer);
+          highlightKey(midi,false);
+          highlightTimer=null;
+        }
+        if(osc){
+          try{ osc.stop(); }catch(e){}
+        }
+        if(gainNode && audioCtx){
+          try{ gainNode.disconnect(); }catch(e){}
+        }
       };
     }
 
@@ -1302,7 +1496,7 @@
       }
       stopDictPlayback();
       if(!notes || !notes.length) return;
-      if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      if(shouldUseWebAudio() && !audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
       const stepMs = 320;
       dictPlaybackState = { button, timers: [], cleanupFns: [] };
       setDictPlayButtonState(button, true);
@@ -1332,6 +1526,7 @@
 
     // ===== MIDI =====
     let midiAccess=null, midiOutput=null;
+    setWebPlaybackEnabled(true);
     let learnMode=null;
     let learnBuffer=[];
     let learnTimer=null;
@@ -1370,6 +1565,7 @@
       if(!midiAccess){
         midiOutput=null;
         setText('midiOutStatus','Ninguna salida seleccionada.');
+        syncWebPlaybackWithOutput();
         return;
       }
 
@@ -1398,6 +1594,7 @@
         midiOutput=null;
         setText('midiOutStatus','Ninguna salida seleccionada.');
       }
+      syncWebPlaybackWithOutput();
     }
 
     function handleMIDIMessage(msg){
@@ -1640,6 +1837,7 @@
     }
 
     function createScheduledAudioNode(midi, durationMs){
+      if(!shouldUseWebAudio()) return null;
       if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
       const osc=audioCtx.createOscillator();
       const g=audioCtx.createGain();
@@ -1679,8 +1877,10 @@
           playbackState.activeMidi.delete(midi & 0x7F);
         }, noteDuration);
         playbackState.timers.push(offTimer);
-      }else{
-        const node = createScheduledAudioNode(midi, noteDuration);
+      }
+
+      const node = createScheduledAudioNode(midi, noteDuration);
+      if(node){
         playbackState.audioNodes.push(node);
         playbackState.timers.push(node.stopTimer);
       }
@@ -2550,7 +2750,10 @@
       const stabilityVal=+document.getElementById('stability').value;
       const complexityVal=+document.getElementById('complexity').value;
       const randomComplex=document.getElementById('randomComplex').checked;
-      const name = prompt('Nombre para esta línea guardada:', 'Línea bebop');
+      const targetText = document.getElementById('chordMidi').value.trim();
+      const defaultName = targetText || 'Línea bebop';
+      const nameInput = prompt('Nombre para esta línea guardada:', defaultName);
+      const finalName = nameInput && nameInput.trim() ? nameInput.trim() : defaultName;
 
       const obj = {
         line,
@@ -2562,7 +2765,7 @@
         complexityVal,
         randomComplex,
         formulaEvents: currentGeneratedState ? currentGeneratedState.formulaEvents || [] : [],
-        name: name || 'Línea bebop',
+        name: finalName,
         timestamp: Date.now()
       };
       savedLines.push(obj);
@@ -2817,6 +3020,33 @@
     }
 
     // ===== UI PRINCIPAL =====
+    const infoBtn = document.getElementById('infoBtn');
+    const infoModal = document.getElementById('infoModal');
+    const infoModalClose = document.getElementById('infoModalClose');
+
+    function openInfoModal(){
+      if(!infoModal) return;
+      infoModal.classList.add('visible');
+      infoModal.setAttribute('aria-hidden','false');
+    }
+
+    function closeInfoModal(){
+      if(!infoModal) return;
+      infoModal.classList.remove('visible');
+      infoModal.setAttribute('aria-hidden','true');
+    }
+
+    if(infoBtn) infoBtn.addEventListener('click', openInfoModal);
+    if(infoModalClose) infoModalClose.addEventListener('click', closeInfoModal);
+    if(infoModal) infoModal.addEventListener('click', e=>{
+      if(e.target === infoModal) closeInfoModal();
+    });
+    document.addEventListener('keydown', e=>{
+      if(e.key === 'Escape' && infoModal && infoModal.classList.contains('visible')){
+        closeInfoModal();
+      }
+    });
+
     document.getElementById('generateBtn').onclick = async ()=>{
       try{
         stopPlayback();
@@ -2885,12 +3115,14 @@
       if(!id){
         midiOutput=null;
         setText('midiOutStatus','Ninguna salida seleccionada.');
+        syncWebPlaybackWithOutput();
         return;
       }
-      if(!midiAccess){ midiOutput=null; return; }
+      if(!midiAccess){ midiOutput=null; syncWebPlaybackWithOutput(); return; }
       const out = Array.from(midiAccess.outputs.values()).find(o=>o.id===id);
       midiOutput=out||null;
       setText('midiOutStatus', out ? 'Salida MIDI: '+(out.name||out.id) : 'Salida seleccionada no disponible.');
+      syncWebPlaybackWithOutput();
     };
 
     document.getElementById('complexity').addEventListener('input', updateComplexityLabel);
